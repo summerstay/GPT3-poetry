@@ -3,7 +3,7 @@ import openai
 import string
 import re
 
-openai.api_key = 
+openai.api_key = "sk-VVIX7jYxSZnJJl8PPQ8LF8Z2V5QFe83nQwQrVapN"
 
 def create_rhyme_dictionary():
     pronounce_file = open("pronounce.txt", "r")
@@ -168,23 +168,27 @@ def poem_scheme(kind):
 
 
 def generate_rhyming_line(poem_so_far, rhyme):
-    prompt_head = "Q. Complete the poem with a line ending in the word ' sigheth '\nWhere Claribel low-lieth\nThe breezes pause and die,\nLetting the rose-leaves fall:\nA. But the solemn oak-tree sigheth,\n\nQ. Complete the poem with a line ending in the word ' die '\nSomeone had blundered.\nTheirs not to make reply,\nTheirs not to reason why,\nA. Theirs but to do and die.\n\nQ. Complete the poem with a line ending in the word ' "
+    prompt_head = 'Q. Complete the poem with a line ending in the word "sigheth"\nWhere Claribel low-lieth\nThe breezes pause and die,\nLetting the rose-leaves fall:\nA. But the solemn oak-tree sigheth,\nQ. Complete the poem with a line ending in the word "detoxify"\nSomeone had blundered.\nTheirs not to make reply,\nTheirs not to reason why,\nA. Theirs but to do and detoxify.\nQ. Complete the poem with a line ending in the word "yesteryear"\nA boat, beneath a sunny sky,\nLingering onward dreamily\nIn an evening of July —\nA: Children three that nestle yesteryear,\nQ. Complete the poem with a line ending in the word "ear"\nAlice moving under skies\nNever seen by waking eyes.\nChildren yet, the tale to hear,\nQ. Complete the poem with a line ending in the word " '
     prompt = prompt_head + rhyme + " '\n" + poem_so_far + "\nA."
-    print(prompt)
-    response = openai.Completion.create(engine="davinci", prompt=prompt, max_tokens=20, n=20, stop = "\n")
-    print("----------")
-    print("----------")
-    completions = []
-    for choice in response.choices:
-        completions.append(choice.text)
-    return completions
+    try:
+        response = openai.Completion.create(engine="davinci", api_key = openai.api_key, prompt=prompt, max_tokens=15, n=10, logprobs = 1, stop = "\n")
+        completions = []
+        for choice in response.choices:
+            completions.append(choice.text)
+        return completions
+    except:
+        return []
 
 def generate_nonrhyming_line(poem_so_far):
-    response = openai.Completion.create(engine="davinci", prompt=poem_so_far, max_tokens=20, n=20, stop = "\n")
-    completions = []
-    for choice in response.choices:
-        completions.append(choice.text)
-    return completions
+    try:
+        response = openai.Completion.create(engine="davinci", api_key = openai.api_key, prompt=poem_so_far, max_tokens=15, n=20, logprobs = 1, stop = "\n")
+        completions = []
+        for choice in response.choices:
+            completions.append(choice.text)
+        return completions
+    except:
+        return []
+    
 
 def last_word(line):
     split_completion = line.split()
@@ -195,15 +199,17 @@ def last_word(line):
     else: 
         return ""
         
-def find_best_completion(completions, meter, stress_dictionary):
+def find_metrical_completions(completions, meter, stress_dictionary):
+    meter_OK=[]
     for completion in completions:
         completion_meter = text_to_meter(completion,stress_dictionary)
-        print(completion_meter)
-        print(meter)
         comparison = compare_meters(completion_meter, meter)
         if comparison == True:
-            return completion
-    return "None"
+            meter_OK.append(completion)
+    if len(meter_OK)>0:
+        return meter_OK
+    else:
+        return []
 
     
 stress_dictionary = create_stress_dictionary()   
@@ -211,24 +217,42 @@ rhyme_dictionary, reverse_rhyme_dictionary, bad_rhymes, syllable_count_dictionar
 
 poem_so_far = "He clasps the crag with crooked hands;\nClose to the sun in lonely lands,"
 meter ="~`~`~`~`"
-possible_rhymes = reverse_rhyme_dictionary[rhyme_dictionary[last_word(poem_so_far)]]
-rhyme = possible_rhymes[27]
-completions = generate_rhyming_line(poem_so_far, rhyme)
-rhyming_completions = []
-for completion in completions:
-        last_word_stripped = last_word(completion)
-        if last_word_stripped == rhyme:
-            rhyming_completions.append(completion)
-print(rhyming_completions)
-best_completion = find_best_completion(rhyming_completions, meter, stress_dictionary)
-print(best_completion)
-poem_so_far = poem_so_far + "\n" + best_completion +"\n"
-completions = generate_nonrhyming_line(poem_so_far)
-print(completions)
-best_completion = find_best_completion(completions,meter,stress_dictionary)
-print(best_completion)
-poem_so_far = poem_so_far + best_completion
-print(poem_so_far)
+for ii in range(1,10):
+    possible_rhymes = reverse_rhyme_dictionary[rhyme_dictionary[last_word(poem_so_far)]]
+    rhyming_completions = []
+    for rhyme in possible_rhymes:
+        print(rhyme, end = " ")
+        completions = generate_rhyming_line(poem_so_far, rhyme)
+        if len(completions)>0:
+            for completion in completions:
+                    last_word_stripped = last_word(completion)
+                    for rhyme2 in possible_rhymes:
+                        if last_word_stripped == rhyme2:
+                            rhyming_completions.append(completion)
+                    
+
+    metrical_completions = find_metrical_completions(rhyming_completions, meter, stress_dictionary)
+    print()
+    count = 0
+    for completion in metrical_completions:
+        print(str(count) + completion)
+        count = count+1
+    index = int(input("choose by number:"))
+    best_completion = metrical_completions[index]
+    poem_so_far = poem_so_far + "\n" + best_completion +"\n"
+    metrical_completions=[]
+    while len(metrical_completions)==0:
+        completions = generate_nonrhyming_line(poem_so_far)
+        metrical_completions = find_metrical_completions(completions,meter,stress_dictionary)
+    print()
+    count = 0
+    for completion in metrical_completions:
+        print(str(count) + completion)
+        count = count+1
+    index = int(input("choose by number:"))
+    best_completion = metrical_completions[index]
+    poem_so_far = poem_so_far + best_completion
+    print(poem_so_far)
 
 
     
