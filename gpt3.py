@@ -170,24 +170,28 @@ def poem_scheme(kind):
 def generate_rhyming_line(poem_so_far, rhyme):
     prompt_head = 'Q. Complete the poem with a line ending in the word "sigheth"\nWhere Claribel low-lieth\nThe breezes pause and die,\nLetting the rose-leaves fall:\nA. But the solemn oak-tree sigheth,\nQ. Complete the poem with a line ending in the word "detoxify"\nSomeone had blundered.\nTheirs not to make reply,\nTheirs not to reason why,\nA. Theirs but to do and detoxify.\nQ. Complete the poem with a line ending in the word "yesteryear"\nA boat, beneath a sunny sky,\nLingering onward dreamily\nIn an evening of July —\nA: Children three that nestle yesteryear,\nQ. Complete the poem with a line ending in the word "ear"\nAlice moving under skies\nNever seen by waking eyes.\nChildren yet, the tale to hear,\nQ. Complete the poem with a line ending in the word " '
     prompt = prompt_head + rhyme + " '\n" + poem_so_far + "\nA."
-    try:
-        response = openai.Completion.create(engine="davinci", api_key = openai.api_key, prompt=prompt, max_tokens=15, n=10, logprobs = 1, stop = "\n")
-        completions = []
-        for choice in response.choices:
-            completions.append(choice.text)
-        return completions
-    except:
-        return []
+
+    completions= []
+    costs=[]
+    for ii in range(1,20):
+        response = openai.Completion.create(engine="davinci", api_key = openai.api_key, prompt=prompt, max_tokens=15, n=1, logprobs = 1, stop = "\n")
+        completions.append(response.choices[0].text)
+        costs.append(sum(response.choices[0].logprobs.token_logprobs))
+    print(completions)
+    return completions, costs
+    
 
 def generate_nonrhyming_line(poem_so_far):
-    try:
-        response = openai.Completion.create(engine="davinci", api_key = openai.api_key, prompt=poem_so_far, max_tokens=15, n=20, logprobs = 1, stop = "\n")
-        completions = []
-        for choice in response.choices:
-            completions.append(choice.text)
-        return completions
-    except:
-        return []
+
+    completions= []
+    costs=[]
+    for ii in range(1,20):
+        response = openai.Completion.create(engine="davinci", api_key = openai.api_key, prompt=poem_so_far, max_tokens=15, n=1, logprobs = 1, stop = "\n")
+        completions.append(response.choices[0].text)
+        costs.append(sum(response.choices[0].logprobs.token_logprobs))
+    print(completions)
+    return completions, costs
+
     
 
 def last_word(line):
@@ -197,19 +201,23 @@ def last_word(line):
         last_word_stripped = last_word.translate(str.maketrans('', '', string.punctuation))
         return last_word_stripped
     else: 
+        print("*", end="")
         return ""
         
-def find_metrical_completions(completions, meter, stress_dictionary):
+def find_metrical_completions(completions, costs, meter, stress_dictionary):
     meter_OK=[]
-    for completion in completions:
+    return_costs=[]
+    for completion, cost in zip(completions, costs):
         completion_meter = text_to_meter(completion,stress_dictionary)
         comparison = compare_meters(completion_meter, meter)
         if comparison == True:
             meter_OK.append(completion)
+            return_costs.append(cost)
     if len(meter_OK)>0:
-        return meter_OK
+        return meter_OK, return_costs
     else:
-        return []
+        print("*", end="")
+        return [],[]
 
     
 stress_dictionary = create_stress_dictionary()   
@@ -222,35 +230,27 @@ for ii in range(1,10):
     rhyming_completions = []
     for rhyme in possible_rhymes:
         print(rhyme, end = " ")
-        completions = generate_rhyming_line(poem_so_far, rhyme)
+        completions, costs = generate_rhyming_line(poem_so_far, rhyme)
         if len(completions)>0:
-            for completion in completions:
+            for completion, cost in zip(completions, costs):
                     last_word_stripped = last_word(completion)
                     for rhyme2 in possible_rhymes:
                         if last_word_stripped == rhyme2:
                             rhyming_completions.append(completion)
                     
 
-    metrical_completions = find_metrical_completions(rhyming_completions, meter, stress_dictionary)
+    metrical_completions, costs = find_metrical_completions(rhyming_completions, costs, meter, stress_dictionary)
     print()
     count = 0
-    for completion in metrical_completions:
-        print(str(count) + completion)
-        count = count+1
-    index = int(input("choose by number:"))
-    best_completion = metrical_completions[index]
+    best_completion = metrical_completions[costs.index(min(costs))]
     poem_so_far = poem_so_far + "\n" + best_completion +"\n"
     metrical_completions=[]
     while len(metrical_completions)==0:
-        completions = generate_nonrhyming_line(poem_so_far)
-        metrical_completions = find_metrical_completions(completions,meter,stress_dictionary)
+        completions, costs = generate_nonrhyming_line(poem_so_far)
+        metrical_completions, costs = find_metrical_completions(completions,costs, meter,stress_dictionary)
     print()
     count = 0
-    for completion in metrical_completions:
-        print(str(count) + completion)
-        count = count+1
-    index = int(input("choose by number:"))
-    best_completion = metrical_completions[index]
+    best_completion = metrical_completions[costs.index(min(costs))]
     poem_so_far = poem_so_far + best_completion
     print(poem_so_far)
 
