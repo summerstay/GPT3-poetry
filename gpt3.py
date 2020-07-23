@@ -3,7 +3,7 @@ import openai
 import string
 import re
 
-openai.api_key = "sk-VVIX7jYxSZnJJl8PPQ8LF8Z2V5QFe83nQwQrVapN"
+openai.api_key = ""
 
 def create_rhyme_dictionary():
     pronounce_file = open("pronounce.txt", "r")
